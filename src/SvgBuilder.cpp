@@ -51,7 +51,7 @@ QString SvgBuilder::buildSvgFromLines(std::vector<std::vector<Point>> const& lin
 
 void SvgBuilder::appendLine(QString& out, std::vector<Point> const& line) {
     out.append(R"F00BAR(    <path
-       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       style="fill:none;stroke:#ff0000;stroke-width:0.26458333;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-dasharray:none;vector-effect:non-scaling-stroke;-inkscape-stroke:hairline"
        d="M)F00BAR");
     for (auto it = line.cbegin(); it != line.cend(); ++it) {
         Point const p = scalePoint (*it);
