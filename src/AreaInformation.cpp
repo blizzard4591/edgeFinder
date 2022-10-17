@@ -115,6 +115,12 @@ AreaInformation AreaInformation::packAreas() const {
 	return result;
 }
 
+double pointDistance(IPoint const& a, IPoint const& b) {
+	double const d_x = a.first - b.first;
+	double const d_y = a.second - b.second;
+	return std::sqrt(d_x * d_x + d_y * d_y);
+}
+
 std::list<IPoint> addPoint(IPoint const& point, std::set<IPoint>& points) {
 	points.erase(point);
 
@@ -134,7 +140,19 @@ std::list<IPoint> addPoint(IPoint const& point, std::set<IPoint>& points) {
 	for (auto const& p : neighbours) {
 		if (points.contains(p)) {
 			std::list<IPoint> nextPoints = addPoint(p, points);
-			ourPoints.insert((nextPoints.size() > ourPoints.size()) ? ourPoints.end() : ourPoints.begin(), nextPoints.cbegin(), nextPoints.cend());
+			double const dist_A = pointDistance(*ourPoints.rbegin(), *nextPoints.cbegin());	/* Our end, their front */ 
+			double const dist_B = pointDistance(*ourPoints.rbegin(), *nextPoints.rbegin());	/* Our end, their end */
+			double const dist_C = pointDistance(*ourPoints.cbegin(), *nextPoints.cbegin());	/* Our front, their front */
+			double const dist_D = pointDistance(*ourPoints.cbegin(), *nextPoints.rbegin());	/* Our front, their end */
+			if ((dist_A <= dist_B) && (dist_A <= dist_C) && (dist_A <= dist_D)) {
+				ourPoints.insert(ourPoints.end(), nextPoints.cbegin(), nextPoints.cend());
+			} else if ((dist_B <= dist_A) && (dist_B <= dist_C) && (dist_B <= dist_D)) {
+				ourPoints.insert(ourPoints.end(), nextPoints.rbegin(), nextPoints.rend());
+			} else if ((dist_C <= dist_A) && (dist_C <= dist_B) && (dist_C <= dist_D)) {
+				ourPoints.insert(ourPoints.begin(), nextPoints.rbegin(), nextPoints.rend());
+			} else {
+				ourPoints.insert(ourPoints.begin(), nextPoints.cbegin(), nextPoints.cend());
+			}
 		}
 	}
 	return ourPoints;
