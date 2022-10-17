@@ -2,8 +2,10 @@
 #define EDGEFINDER_AREAINFORMATION_H_
 
 #include <cstdint>
+#include <list>
 #include <unordered_map>
 #include <unordered_set>
+#include <set>
 #include <vector>
 
 #include "Point.h"
@@ -37,6 +39,12 @@ public:
 	static inline std::size_t posToVec(int x, int y, int width) {
 		return y * width + x;
 	}
+
+	static inline double pointDistance(IPoint const& a, IPoint const& b) {
+		double const d_x = a.first - b.first;
+		double const d_y = a.second - b.second;
+		return std::sqrt(d_x * d_x + d_y * d_y);
+	}
 private:
 	int m_w;
 	int m_h;
@@ -46,6 +54,8 @@ private:
 	int m_areaCounter;
 	std::vector<int> m_areaMembers;
 	std::vector<std::unordered_set<int>> m_areaNeighbours;
+
+	std::list<IPoint> addPoint(IPoint const& point, std::set<IPoint>& points) const;
 };
 
 #endif

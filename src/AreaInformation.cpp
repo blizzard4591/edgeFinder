@@ -115,13 +115,7 @@ AreaInformation AreaInformation::packAreas() const {
 	return result;
 }
 
-double pointDistance(IPoint const& a, IPoint const& b) {
-	double const d_x = a.first - b.first;
-	double const d_y = a.second - b.second;
-	return std::sqrt(d_x * d_x + d_y * d_y);
-}
-
-std::list<IPoint> addPoint(IPoint const& point, std::set<IPoint>& points) {
+std::list<IPoint> AreaInformation::addPoint(IPoint const& point, std::set<IPoint>& points) const {
 	points.erase(point);
 
 	std::list<IPoint> ourPoints;

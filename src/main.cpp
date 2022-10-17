@@ -133,13 +133,38 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 	std::vector<std::vector<Point>> outLines;
 	std::size_t pointCountBeforeRdp = 0;
 	std::size_t pointCountAfterRdp = 0;
+	std::size_t linesRemovedFromDeduplication = 0;
 	std::size_t maxPointCountPerLineBefore = 0;
 	std::size_t maxPointCountPerLineAfter = 0;
+
+	// We will save a single point of each line, and if another line comes closer than a small epsilon, we will consider them identical and remove one.
+	std::vector<Point> deduplicationMarkerPoints;
+	double const deduplicationEpsilon = 2.0;
 
 	for (int i = 0; i < repackedAreas.getAreaCount(); ++i) {
 		auto const& lines = listOfLinesPerArea.at(i);
 		for (std::size_t j = 0; j < lines.size(); ++j) {
 			auto const& line = lines.at(j);
+
+			bool isDuplicate = false;
+			if (deduplicationMarkerPoints.size() > 0) {
+				for (std::size_t k = 0; (k < line.size()) && (!isDuplicate); ++k) {
+					auto const& p = line.at(k);
+					for (auto it = deduplicationMarkerPoints.cbegin(); it != deduplicationMarkerPoints.cend(); ++it) {
+						if (AreaInformation::pointDistance(p, *it) < deduplicationEpsilon) {
+							isDuplicate = true;
+							break;
+						}
+					}
+				}
+			}
+			
+			if (isDuplicate) {
+				++linesRemovedFromDeduplication;
+				continue;
+			}
+			deduplicationMarkerPoints.push_back(*line.cbegin());
+
 			pointCountBeforeRdp += line.size();
 			if (line.size() > maxPointCountPerLineBefore) {
 				maxPointCountPerLineBefore = line.size();
@@ -158,7 +183,7 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 			}
 		}
 	}
-	std::cout << "We got " << outLines.size() << " lines with " << pointCountBeforeRdp << " points (longest: " << maxPointCountPerLineBefore << ", average: " << (pointCountBeforeRdp / outLines.size()) << ")." << std::endl;
+	std::cout << "We got " << outLines.size() << " lines (removed from deduplication: " << linesRemovedFromDeduplication << ") with " << pointCountBeforeRdp << " points (longest: " << maxPointCountPerLineBefore << " points, average: " << (pointCountBeforeRdp / outLines.size()) << " points)." << std::endl;
 	std::cout << "After applying RDP, we have " << outLines.size() << " lines with " << pointCountAfterRdp << " points (longest: " << maxPointCountPerLineAfter << ", average: " << (pointCountAfterRdp / outLines.size()) << ")." << std::endl;
 
 	double const targetW = 297.0;
