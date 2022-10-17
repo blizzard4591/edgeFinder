@@ -43,14 +43,14 @@ inline std::size_t posToVec(int x, int y, int width) {
 	return y * width + x;
 }
 
-void detectAreas(QImage const& image, int const threshold, double const epsilon) {
+void detectAreas(QImage const& image, int const colourThreshold, int const areaSizeThreshold, double const epsilon) {
 	int const width = image.width();
 	int const height = image.height();
 	std::vector<bool> imageBw(width * height, false);
 	for (int w = 0; w < width; ++w) {
 		for (int h = 0; h < height; ++h) {
 			QRgb const rgb = image.pixel(w, h);
-			imageBw[posToVec(w, h, width)] = (qRed(rgb) > 64 && qGreen(rgb) > 64 && qBlue(rgb) > 64);
+			imageBw[posToVec(w, h, width)] = (qRed(rgb) > colourThreshold && qGreen(rgb) > colourThreshold && qBlue(rgb) > colourThreshold);
 		}
 	}
 
@@ -98,7 +98,7 @@ void detectAreas(QImage const& image, int const threshold, double const epsilon)
 		// Now, merge all area < X
 		hadChange = false;
 		for (int i = 0; i < repackedAreas.getAreaCount(); ++i) {
-			if (repackedAreas.getAreaMemberCount(i) < threshold) {
+			if (repackedAreas.getAreaMemberCount(i) < areaSizeThreshold) {
 				int const newArea = repackedAreas.getLargestNeighbourArea(i);
 				if (newArea == -1) {
 					std::cerr << "Internal Error: Area has no neighbours?!" << std::endl;
@@ -187,7 +187,8 @@ int main(int argc, char* argv[]) {
 	parser.addVersionOption();
 	parser.addPositionalArgument("image", QApplication::translate("main", "Path to input image"));
 	parser.addOption(QCommandLineOption("epsilon", "Epsilon for the Ramer-Douglas-Peucker algoritm", "epsilon", "0.01"));
-	parser.addOption(QCommandLineOption("threshold", "Threshold for small area deletion", "threshold", "500"));
+	parser.addOption(QCommandLineOption("areaSizeThreshold", "Threshold for small area deletion", "areaSizeThreshold", "500"));
+	parser.addOption(QCommandLineOption("colourThreshold", "Threshold for  deciding between black and white", "colourThreshold", "64"));
 
 	// Process the actual command line arguments given by the user
 	parser.process(app);
@@ -207,14 +208,23 @@ int main(int argc, char* argv[]) {
 	}
 	std::cout << "Using epsilon = " << epsilon << " for the RDP algorithmus." << std::endl;
 
-	QString const thresholdString = parser.value("threshold");
+	QString const areaSizeThresholdString = parser.value("areaSizeThreshold");
 	ok = false;
-	int const threshold = thresholdString.toInt(&ok);
+	int const areaSizeThreshold = areaSizeThresholdString.toInt(&ok);
 	if (!ok) {
-		std::cerr << "Threshold for small area deletion could not be parsed: '" << thresholdString.toStdString() << "'" << std::endl;
+		std::cerr << "Threshold for small area deletion could not be parsed: '" << areaSizeThresholdString.toStdString() << "'" << std::endl;
 		return -1;
 	}
-	std::cout << "Using threshold = " << threshold << " for small area deletion." << std::endl;
+	std::cout << "Using threshold = " << areaSizeThreshold << " for small area deletion." << std::endl;
+
+	QString const colourThresholdString = parser.value("colourThreshold");
+	ok = false;
+	int const colourThreshold = colourThresholdString.toInt(&ok);
+	if (!ok) {
+		std::cerr << "Threshold for black/white decision could not be parsed: '" << colourThresholdString.toStdString() << "'" << std::endl;
+		return -1;
+	}
+	std::cout << "Using threshold = " << colourThreshold << " for black/white decision (every RGB component > threshold => white)." << std::endl;
 
 	if (!QFile::exists(args[0])) {
 		std::cerr << "Input image '" << args[0].toStdString() << "' does not exist!" << std::endl;
@@ -223,7 +233,7 @@ int main(int argc, char* argv[]) {
 	QImage image(args[0]);
 	std::cout << "Input image has dimensions " << image.width() << " x " << image.height() << "." << std::endl;
 
-	detectAreas(image, threshold, epsilon);
+	detectAreas(image, colourThreshold, areaSizeThreshold, epsilon);
 
 	std::cout << "Bye bye!" << std::endl;
 	return 0;
