@@ -1,5 +1,4 @@
 #include <QCoreApplication>
-#include <QApplication>
 #include <QCommandLineParser>
 #include <QFile>
 #include <QImage>
@@ -201,16 +200,16 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 }
 
 int main(int argc, char* argv[]) {
-	QApplication app(argc, argv);
+	QCoreApplication app(argc, argv);
 
-	QApplication::setApplicationName("EdgeFinder");
-	QApplication::setApplicationVersion("1.0.0");
+	QCoreApplication::setApplicationName("EdgeFinder");
+	QCoreApplication::setApplicationVersion("1.0.0");
 
 	QCommandLineParser parser;
 	parser.setApplicationDescription("EdgeFinder");
 	parser.addHelpOption();
 	parser.addVersionOption();
-	parser.addPositionalArgument("image", QApplication::translate("main", "Path to input image"));
+	parser.addPositionalArgument("image", QCoreApplication::translate("main", "Path to input image"));
 	parser.addOption(QCommandLineOption("epsilon", "Epsilon for the Ramer-Douglas-Peucker algoritm", "epsilon", "0.01"));
 	parser.addOption(QCommandLineOption("areaSizeThreshold", "Threshold for small area deletion", "areaSizeThreshold", "500"));
 	parser.addOption(QCommandLineOption("colourThreshold", "Threshold for  deciding between black and white", "colourThreshold", "64"));

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(edgeFinder CXX)
 
-set(CXX ON) # For Gurobi
+set(CXX ON)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR})
 if(NOT CMAKE_BUILD_TYPE)
@@ -46,5 +46,5 @@ add_executable(${CMAKE_PROJECT_NAME} ${PROJECT_HEADERS} ${PROJECT_SOURCES_CPP})
 
 set(CMAKE_CXX_STANDARD 20)
 
-target_link_libraries(${CMAKE_PROJECT_NAME} Qt6::Core Qt6::Gui Qt6::Widgets Qt6::WidgetsPrivate)
+target_link_libraries(${CMAKE_PROJECT_NAME} Qt6::Core Qt6::Gui)
 
