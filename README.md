@@ -19,19 +19,27 @@ There are three options that you can play with:
 
 ## Usage Example
 In the `examples` folder, `composition_colour.jpg` represents a possible starting picture.
+
 <img src="/examples/composition_colour.jpg?raw=true" width="350" alt="Three objects in colour">
+
 The image was free-form selected in a photo editing software to produce `composition_bw.jpg` simply by applying an exposure shift.
+
 <img src="/examples/composition_bw.jpg?raw=true" width="350" alt="Three objects, now almost in black and white">
+
 We can now run the tool on this file
 ```
 	edgeFinder.exe composition_bw.jpg --epsilon 2.0 --areaSizeThreshold 350 --colourThreshold 64
 ```
 This will produce two intermediate output files.
 The first is `imageBw.png`, which shows whether the value for `--colourThreshold` was chosen appropriately.
+
 <img src="/examples/imageBw.png?raw=true" width="350" alt="Three objects, now in black and white">
+
 If any pixels were selected incorrectly, either change `--colourThreshold` or re-work your input.
 Once you are happy, the file `imageArea.png` shows the segmentation result.
+
 <img src="/examples/imageArea.png?raw=true" width="350" alt="Three objects, now segmented into areas">
+
 If too many small areas (e.g. around hair) appear, lower the `--areaSizeThreshold`.
 Finally, `image.svg` contains the generated paths that can be used to laser-cut or further refinement.
 
