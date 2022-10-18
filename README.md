@@ -9,7 +9,7 @@ The tool is governed by the GNU GPL v2.0 license. See [`LICENSE`](LICENSE) for m
 ## Requirements
  - [CMake](https://cmake.org/)
  - [Qt 6](https://www.qt.io/)
- - C++20, meaning a recent MSVC/GCC/Clang that supports C++20
+ - C++17, meaning a recent MSVC/GCC/Clang that supports at least C++17
  
 ## How to use
 There are three options that you can play with:

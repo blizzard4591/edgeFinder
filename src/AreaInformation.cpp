@@ -17,7 +17,7 @@ int AreaInformation::getArea(int x, int y) const {
 }
 
 void AreaInformation::setArea(int x, int y, int area) {
-	assert(!m_mergedAreas.contains(area) && "Internal Error: Used area was not unmerged!");
+	assert((m_mergedAreas.find(area) == m_mergedAreas.cend()) && "Internal Error: Used area was not unmerged!");
 	m_areas[posToVec(x, y, m_w)] = area;
 
 	// Check surrounding neighbours
@@ -34,8 +34,10 @@ void AreaInformation::setArea(int x, int y, int area) {
 }
 
 int AreaInformation::resolveArea(int area) const {
-	while (m_mergedAreas.contains(area)) {
-		area = m_mergedAreas.at(area);
+	auto it = m_mergedAreas.find(area);
+	while (it != m_mergedAreas.cend()) {
+		area = it->second;
+		it = m_mergedAreas.find(area);
 	}
 	return area;
 }
@@ -93,7 +95,7 @@ AreaInformation AreaInformation::packAreas() const {
 			assert(area >= 0 && "Internal Error: Area was not set yet!");
 			int const resolvedArea = resolveArea(area);
 				
-			if (!indexMap.contains(resolvedArea)) {
+			if (indexMap.find(resolvedArea) == indexMap.cend()) {
 				indexMap.insert(std::make_pair(resolvedArea, result.addArea()));
 			}
 			result.setArea(w, h, indexMap.at(resolvedArea));

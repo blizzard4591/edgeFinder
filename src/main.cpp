@@ -6,7 +6,6 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
-#include <format>
 #include <iostream>
 #include <unordered_set>
 

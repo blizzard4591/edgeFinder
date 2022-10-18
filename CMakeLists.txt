@@ -29,10 +29,20 @@ if(MSVC AND MT)
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd")
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
-qt_standard_project_setup()
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Gui)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui)
 
-add_definitions(/std:c++latest)
+message(STATUS "Using Qt version ${QT_VERSION_MAJOR}.")
+
+if ("${QT_VERSION_MAJOR}" STREQUAL "6")
+	qt_standard_project_setup()
+endif()
+
+if (MSVC)
+	add_definitions(/std:c++17)
+else()
+	add_definitions(-std=c++17)
+endif()
 
 # Add base folder for better inclusion paths
 include_directories("${PROJECT_SOURCE_DIR}")
@@ -44,7 +54,7 @@ file(GLOB PROJECT_SOURCES_CPP ${PROJECT_SOURCE_DIR}/src/*.cpp)
 
 add_executable(${CMAKE_PROJECT_NAME} ${PROJECT_HEADERS} ${PROJECT_SOURCES_CPP})
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 
-target_link_libraries(${CMAKE_PROJECT_NAME} Qt6::Core Qt6::Gui)
+target_link_libraries(${CMAKE_PROJECT_NAME} Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Gui)
 
