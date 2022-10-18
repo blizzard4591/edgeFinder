@@ -2,8 +2,6 @@
 #include <QCommandLineParser>
 #include <QFile>
 #include <QImage>
-#include <QTransform>
-#include <QTextStream>
 
 #include <chrono>
 #include <cmath>
@@ -45,6 +43,8 @@ inline std::size_t posToVec(int x, int y, int width) {
 void detectAreas(QImage const& image, int const colourThreshold, int const areaSizeThreshold, double const epsilon) {
 	int const width = image.width();
 	int const height = image.height();
+
+	auto const timeBwImageStart = std::chrono::steady_clock::now();
 	std::vector<bool> imageBw(width * height, false);
 	for (int w = 0; w < width; ++w) {
 		for (int h = 0; h < height; ++h) {
@@ -52,7 +52,10 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 			imageBw[posToVec(w, h, width)] = (qRed(rgb) > colourThreshold && qGreen(rgb) > colourThreshold && qBlue(rgb) > colourThreshold);
 		}
 	}
+	auto const timeBwImageEnd = std::chrono::steady_clock::now();
+	std::cout << "Timing - Mapping the image to black and white took " << std::chrono::duration_cast<std::chrono::milliseconds>(timeBwImageEnd - timeBwImageStart).count() << "ms." << std::endl;
 
+	auto const timeBwImageBuildStart = std::chrono::steady_clock::now();
 	QImage bwImage(width, height, QImage::Format_RGB32);
 	for (int w = 0; w < width; ++w) {
 		for (int h = 0; h < height; ++h) {
@@ -60,7 +63,10 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 		}
 	}
 	bwImage.save("imageBw.png");
+	auto const timeBwImageBuildEnd = std::chrono::steady_clock::now();
+	std::cout << "Timing - Creating and writing the black and white image took " << std::chrono::duration_cast<std::chrono::milliseconds>(timeBwImageBuildEnd - timeBwImageBuildStart).count() << "ms." << std::endl;
 
+	auto const timeAreaCreationStart = std::chrono::steady_clock::now();
 	AreaInformation areaInformation(width, height);
 	for (int w = 0; w < width; ++w) {
 		for (int h = 0; h < height; ++h) {
@@ -90,8 +96,12 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 
 	// How many areas for real?
 	AreaInformation repackedAreas = areaInformation.packAreas();
+	auto const timeAreaCreationEnd = std::chrono::steady_clock::now();
+	std::cout << "Timing - Creating and merging the areas took " << std::chrono::duration_cast<std::chrono::milliseconds>(timeAreaCreationEnd - timeAreaCreationStart).count() << "ms." << std::endl;
+
 	std::cout << "Used " << areaInformation.getAreaCount() << " areas, merged to a final amount of " << repackedAreas.getAreaCount() << " areas." << std::endl;
 	
+	auto const timeSmallAreaMergingStart = std::chrono::steady_clock::now();
 	bool hadChange = false;
 	do {
 		// Now, merge all area < X
@@ -109,15 +119,16 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 		}
 		repackedAreas = repackedAreas.packAreas();
 	} while (hadChange);
-	std::cout << "Merging small areas brings us to a final amount of " << repackedAreas.getAreaCount() << " areas." << std::endl;
+	auto const timeSmallAreaMergingEnd = std::chrono::steady_clock::now();
+	std::cout << "Timing - Merging the small areas areas took " << std::chrono::duration_cast<std::chrono::milliseconds>(timeSmallAreaMergingEnd - timeSmallAreaMergingStart).count() << "ms." << std::endl;
 
+	std::cout << "Merging small areas brings us to a final amount of " << repackedAreas.getAreaCount() << " areas." << std::endl;
 	for (int i = 0; i < repackedAreas.getAreaCount(); ++i) {
 		std::cout << "\tArea " << i << " has " << repackedAreas.getAreaMemberCount(i) << " members." << std::endl;
 	}
 
+	auto const timeAreaImageCreationStart = std::chrono::steady_clock::now();
 	std::vector<QColor> const colours = makeColors(repackedAreas.getAreaCount());
-	std::cout << "Prepared " << colours.size() << " colours." << std::endl;
-
 	QImage areaImage(width, height, QImage::Format_RGB32);
 	for (int w = 0; w < width; ++w) {
 		for (int h = 0; h < height; ++h) {
@@ -126,9 +137,10 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 		}
 	}
 	areaImage.save("imageArea.png");
+	auto const timeAreaImageCreationEnd = std::chrono::steady_clock::now();
+	std::cout << "Timing - Creating and writing the area image took " << std::chrono::duration_cast<std::chrono::milliseconds>(timeAreaImageCreationEnd - timeAreaImageCreationStart).count() << "ms." << std::endl;
 
 	auto const listOfLinesPerArea = repackedAreas.getListOfLinesPerArea();
-	
 	std::vector<std::vector<Point>> outLines;
 	std::size_t pointCountBeforeRdp = 0;
 	std::size_t pointCountAfterRdp = 0;
@@ -140,6 +152,7 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 	std::vector<Point> deduplicationMarkerPoints;
 	double const deduplicationEpsilon = 2.0;
 
+	auto const timeLineFormingStart = std::chrono::steady_clock::now();
 	for (int i = 0; i < repackedAreas.getAreaCount(); ++i) {
 		auto const& lines = listOfLinesPerArea.at(i);
 		for (std::size_t j = 0; j < lines.size(); ++j) {
@@ -182,13 +195,15 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 			}
 		}
 	}
+	auto const timeLineFormingEnd = std::chrono::steady_clock::now();
+	std::cout << "Timing - Forming the lines from points took " << std::chrono::duration_cast<std::chrono::milliseconds>(timeLineFormingEnd - timeLineFormingStart).count() << "ms." << std::endl;
 	std::cout << "We got " << outLines.size() << " lines (removed from deduplication: " << linesRemovedFromDeduplication << ") with " << pointCountBeforeRdp << " points (longest: " << maxPointCountPerLineBefore << " points, average: " << (pointCountBeforeRdp / outLines.size()) << " points)." << std::endl;
 	std::cout << "After applying RDP, we have " << outLines.size() << " lines with " << pointCountAfterRdp << " points (longest: " << maxPointCountPerLineAfter << ", average: " << (pointCountAfterRdp / outLines.size()) << ")." << std::endl;
 
 	double const targetW = 297.0;
 	double const targetH = 210.0;
+	auto const timeSvgBuildingStart = std::chrono::steady_clock::now();
 	SvgBuilder svgBuilder(width, height, targetW, targetH);
-
 	QFile svgFile("image.svg");
 	if (!svgFile.open(QFile::WriteOnly)) {
 		std::cerr << "Failed to open SVG output!" << std::endl;
@@ -196,6 +211,8 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 	}
 	svgFile.write(svgBuilder.buildSvgFromLines(outLines).toUtf8());
 	svgFile.close();
+	auto const timeSvgBuildingEnd = std::chrono::steady_clock::now();
+	std::cout << "Timing - SVG creation and writing took " << std::chrono::duration_cast<std::chrono::milliseconds>(timeSvgBuildingEnd - timeSvgBuildingStart).count() << "ms." << std::endl;
 	std::cout << "Wrote SVG file to disk." << std::endl;
 }
 
