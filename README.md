@@ -26,9 +26,9 @@ The image was free-form selected in a photo editing software to produce `composi
 
 <img src="/examples/composition_bw.jpg?raw=true" width="350" alt="Three objects, now almost in black and white">
 
-We can now run the tool on this file
+We can now run the tool on this file:
 ```
-	edgeFinder.exe composition_bw.jpg --epsilon 2.0 --areaSizeThreshold 350 --colourThreshold 64
+	edgeFinder ../examples/composition_bw.jpg --epsilon 2.0 --areaSizeThreshold 350 --colourThreshold 64
 ```
 This will produce two intermediate output files.
 The first is `imageBw.png`, which shows whether the value for `--colourThreshold` was chosen appropriately.
