@@ -1,8 +1,8 @@
 #include "AreaInformation.h"
 
 #include <array>
+#include <cassert>
 #include <iostream>
-#include <list>
 #include <set>
 #include <stack>
 
@@ -12,18 +12,12 @@ AreaInformation::AreaInformation(int width, int height) : m_w(width), m_h(height
 
 int AreaInformation::getArea(int x, int y) const {
 	int const area = m_areas.at(posToVec(x, y, m_w));
-	if (area < 0) {
-		std::cerr << "Internal Error: Area was not set yet!" << std::endl;
-		throw;
-	}
+	assert(area >= 0 && "Internal Error: Area was not set yet!");
 	return resolveArea(area);
 }
 
 void AreaInformation::setArea(int x, int y, int area) {
-	if (m_mergedAreas.contains(area)) {
-		std::cerr << "Internal Error: Used area was not unmerged!" << std::endl;
-		throw;
-	}
+	assert(!m_mergedAreas.contains(area) && "Internal Error: Used area was not unmerged!");
 	m_areas[posToVec(x, y, m_w)] = area;
 
 	// Check surrounding neighbours
@@ -62,15 +56,9 @@ int AreaInformation::addArea() {
 	int const newArea = m_areaCounter;
 	++m_areaCounter;
 	m_areaMembers.push_back(0);
-	if (m_areaMembers.size() != m_areaCounter) {
-		std::cerr << "Internal Error: Area Counter and membership vector out of sync!" << std::endl;
-		throw;
-	}
+	assert(m_areaMembers.size() == m_areaCounter && "Internal Error: Area Counter and membership vector out of sync!");
 	m_areaNeighbours.push_back({});
-	if (m_areaNeighbours.size() != m_areaCounter) {
-		std::cerr << "Internal Error: Area Counter and neighbour vector out of sync!" << std::endl;
-		throw;
-	}
+	assert(m_areaNeighbours.size() == m_areaCounter && "Internal Error: Area Counter and neighbour vector out of sync!");
 	return newArea;
 }
 
@@ -102,10 +90,7 @@ AreaInformation AreaInformation::packAreas() const {
 	for (int w = 0; w < m_w; ++w) {
 		for (int h = 0; h < m_h; ++h) {
 			int const area = m_areas.at(posToVec(w, h, m_w));
-			if (area < 0) {
-				std::cerr << "Internal Error: Area was not set yet!" << std::endl;
-				throw;
-			}
+			assert(area >= 0 && "Internal Error: Area was not set yet!");
 			int const resolvedArea = resolveArea(area);
 				
 			if (!indexMap.contains(resolvedArea)) {
@@ -130,7 +115,7 @@ public:
 			std::make_pair(point.first + 1, point.second + 1),
 			std::make_pair(point.first - 1, point.second + 1)
 		}), m_points({ point }) {
-		//
+		m_points.reserve(10000);
 	}
 
 	// For the root frame, no points, only a list
@@ -144,11 +129,11 @@ public:
 		return m_neighbours[m_index++];
 	}
 
-	std::list<IPoint> const& getPointList() const {
+	std::vector<IPoint> const& getPointList() const {
 		return m_points;
 	}
 
-	std::list<IPoint>& getPointList() {
+	std::vector<IPoint>& getPointList() {
 		return m_points;
 	}
 
@@ -158,10 +143,10 @@ public:
 private:
 	std::uint8_t m_index;
 	std::array<IPoint, LINESEARCH_NEIGHBOUR_COUNT> m_neighbours;
-	std::list<IPoint> m_points;
+	std::vector<IPoint> m_points;
 };
 
-std::list<IPoint> AreaInformation::addPointIterative(IPoint const& start, std::set<IPoint>& points, std::size_t& maxStackSize) const {
+std::vector<IPoint> AreaInformation::addPointIterative(IPoint const& start, std::set<IPoint>& points, std::size_t& maxStackSize) const {
 	std::stack<LineSearchStackFrame> stack;
 	stack.push(LineSearchStackFrame(start));
 	points.erase(start);
@@ -183,14 +168,14 @@ std::list<IPoint> AreaInformation::addPointIterative(IPoint const& start, std::s
 			}
 		} else {
 			// My frame is now on top, merge with parent and pop
-			std::list<IPoint> const nextPoints = stack.top().getPointList();
+			std::vector<IPoint> const nextPoints = stack.top().getPointList();
 			stack.pop();
 			if (stack.empty()) {
 				// Root Frame
 				return nextPoints;
 			}
 
-			std::list<IPoint>& ourPoints = stack.top().getPointList();
+			std::vector<IPoint>& ourPoints = stack.top().getPointList();
 			double const dist_A = pointDistance(*ourPoints.rbegin(), *nextPoints.cbegin());	/* Our end, their front */
 			double const dist_B = pointDistance(*ourPoints.rbegin(), *nextPoints.rbegin());	/* Our end, their end */
 			double const dist_C = pointDistance(*ourPoints.cbegin(), *nextPoints.cbegin());	/* Our front, their front */
