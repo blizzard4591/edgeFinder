@@ -1,6 +1,7 @@
 #ifndef EDGEFINDER_AREAINFORMATION_H_
 #define EDGEFINDER_AREAINFORMATION_H_
 
+#include <cmath>
 #include <cstdint>
 #include <list>
 #include <unordered_map>
