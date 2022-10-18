@@ -14,8 +14,8 @@
 #include "RamerDouglasPeucker.h"
 #include "SvgBuilder.h"
 
-std::vector<QColor> makeColors(int areaCount) {
-	std::vector<QColor> result;
+std::vector<QRgb> makeColors(int areaCount) {
+	std::vector<QRgb> result;
 	result.reserve(areaCount);
 
 	int r = 0;
@@ -23,7 +23,7 @@ std::vector<QColor> makeColors(int areaCount) {
 	int b = 0;
 	int const increase = 252 / std::ceil(areaCount / 3.0);
 	for (int i = 0; i < areaCount; ++i) {
-		result.push_back(QColor(r, g, b));
+		result.push_back(qRgb(r, g, b));
 		if (i % 3 == 0) {
 			r += increase;
 		} else if (i % 3 == 1) {
@@ -46,20 +46,24 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 
 	auto const timeBwImageStart = std::chrono::steady_clock::now();
 	std::vector<bool> imageBw(width * height, false);
-	for (int w = 0; w < width; ++w) {
-		for (int h = 0; h < height; ++h) {
-			QRgb const rgb = image.pixel(w, h);
+	for (int h = 0; h < height; ++h) {
+		QRgb const* line = reinterpret_cast<QRgb const*>(image.scanLine(h));
+		for (int w = 0; w < width; ++w) {
+			QRgb const& rgb = line[w];
 			imageBw[posToVec(w, h, width)] = (qRed(rgb) > colourThreshold && qGreen(rgb) > colourThreshold && qBlue(rgb) > colourThreshold);
 		}
 	}
 	auto const timeBwImageEnd = std::chrono::steady_clock::now();
 	std::cout << "Timing - Mapping the image to black and white took " << std::chrono::duration_cast<std::chrono::milliseconds>(timeBwImageEnd - timeBwImageStart).count() << "ms." << std::endl;
 
+	QRgb const colourBlack = QColorConstants::Black.rgb();
+	QRgb const colourWhite = QColorConstants::White.rgb();
 	auto const timeBwImageBuildStart = std::chrono::steady_clock::now();
 	QImage bwImage(width, height, QImage::Format_RGB32);
-	for (int w = 0; w < width; ++w) {
-		for (int h = 0; h < height; ++h) {
-			bwImage.setPixelColor(w, h, imageBw[posToVec(w, h, width)] ? Qt::GlobalColor::white : Qt::GlobalColor::black);
+	for (int h = 0; h < height; ++h) {
+		QRgb* line = reinterpret_cast<QRgb*>(bwImage.scanLine(h));
+		for (int w = 0; w < width; ++w) {
+			line[w] = imageBw[posToVec(w, h, width)] ? colourWhite : colourBlack;
 		}
 	}
 	bwImage.save("imageBw.png");
@@ -128,19 +132,24 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 	}
 
 	auto const timeAreaImageCreationStart = std::chrono::steady_clock::now();
-	std::vector<QColor> const colours = makeColors(repackedAreas.getAreaCount());
+	std::vector<QRgb> const colours = makeColors(repackedAreas.getAreaCount());
 	QImage areaImage(width, height, QImage::Format_RGB32);
-	for (int w = 0; w < width; ++w) {
-		for (int h = 0; h < height; ++h) {
+	for (int h = 0; h < height; ++h) {
+		QRgb* line = reinterpret_cast<QRgb*>(areaImage.scanLine(h));
+		for (int w = 0; w < width; ++w) {
 			int const resolvedArea = repackedAreas.getArea(w, h);
-			areaImage.setPixelColor(w, h, colours[resolvedArea]);
+			line[w] = colours[resolvedArea];
 		}
 	}
 	areaImage.save("imageArea.png");
 	auto const timeAreaImageCreationEnd = std::chrono::steady_clock::now();
 	std::cout << "Timing - Creating and writing the area image took " << std::chrono::duration_cast<std::chrono::milliseconds>(timeAreaImageCreationEnd - timeAreaImageCreationStart).count() << "ms." << std::endl;
 
+	auto const timeLineFormingStart = std::chrono::steady_clock::now();
 	auto const listOfLinesPerArea = repackedAreas.getListOfLinesPerArea();
+	auto const timeLineFormingEnd = std::chrono::steady_clock::now();
+	std::cout << "Timing - Forming lines from the points took " << std::chrono::duration_cast<std::chrono::milliseconds>(timeLineFormingEnd - timeLineFormingStart).count() << "ms." << std::endl;
+
 	std::vector<std::vector<Point>> outLines;
 	std::size_t pointCountBeforeRdp = 0;
 	std::size_t pointCountAfterRdp = 0;
@@ -152,7 +161,7 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 	std::vector<Point> deduplicationMarkerPoints;
 	double const deduplicationEpsilon = 2.0;
 
-	auto const timeLineFormingStart = std::chrono::steady_clock::now();
+	auto const timeLineDedupAndRdpStart = std::chrono::steady_clock::now();
 	for (int i = 0; i < repackedAreas.getAreaCount(); ++i) {
 		auto const& lines = listOfLinesPerArea.at(i);
 		for (std::size_t j = 0; j < lines.size(); ++j) {
@@ -195,8 +204,8 @@ void detectAreas(QImage const& image, int const colourThreshold, int const areaS
 			}
 		}
 	}
-	auto const timeLineFormingEnd = std::chrono::steady_clock::now();
-	std::cout << "Timing - Forming the lines from points took " << std::chrono::duration_cast<std::chrono::milliseconds>(timeLineFormingEnd - timeLineFormingStart).count() << "ms." << std::endl;
+	auto const timeLineDedupAndRdpEnd = std::chrono::steady_clock::now();
+	std::cout << "Timing - Deduplication of lines and applying RDP took " << std::chrono::duration_cast<std::chrono::milliseconds>(timeLineDedupAndRdpEnd - timeLineDedupAndRdpStart).count() << "ms." << std::endl;
 	std::cout << "We got " << outLines.size() << " lines (removed from deduplication: " << linesRemovedFromDeduplication << ") with " << pointCountBeforeRdp << " points (longest: " << maxPointCountPerLineBefore << " points, average: " << (pointCountBeforeRdp / outLines.size()) << " points)." << std::endl;
 	std::cout << "After applying RDP, we have " << outLines.size() << " lines with " << pointCountAfterRdp << " points (longest: " << maxPointCountPerLineAfter << ", average: " << (pointCountAfterRdp / outLines.size()) << ")." << std::endl;
 
