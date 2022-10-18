@@ -55,7 +55,7 @@ private:
 	std::vector<int> m_areaMembers;
 	std::vector<std::unordered_set<int>> m_areaNeighbours;
 
-	std::list<IPoint> addPoint(IPoint const& point, std::set<IPoint>& points) const;
+	std::list<IPoint> addPointIterative(IPoint const& start, std::set<IPoint>& points, std::size_t& maxStackSize) const;
 };
 
 #endif

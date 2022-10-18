@@ -1,8 +1,10 @@
 #include "AreaInformation.h"
 
+#include <array>
 #include <iostream>
 #include <list>
 #include <set>
+#include <stack>
 
 AreaInformation::AreaInformation(int width, int height) : m_w(width), m_h(height), m_areas(width* height, -1), m_mergedAreas(), m_areaCounter(0) {
 	//
@@ -115,26 +117,81 @@ AreaInformation AreaInformation::packAreas() const {
 	return result;
 }
 
-std::list<IPoint> AreaInformation::addPoint(IPoint const& point, std::set<IPoint>& points) const {
-	points.erase(point);
+#define LINESEARCH_NEIGHBOUR_COUNT 8u
+class LineSearchStackFrame {
+public:
+	LineSearchStackFrame(IPoint const& point) : m_index(0), m_neighbours({
+			std::make_pair(point.first - 1, point.second),
+			std::make_pair(point.first, point.second - 1),
+			std::make_pair(point.first + 1, point.second),
+			std::make_pair(point.first, point.second + 1),
+			std::make_pair(point.first - 1, point.second - 1),
+			std::make_pair(point.first + 1, point.second - 1),
+			std::make_pair(point.first + 1, point.second + 1),
+			std::make_pair(point.first - 1, point.second + 1)
+		}), m_points({ point }) {
+		//
+	}
 
-	std::list<IPoint> ourPoints;
-	ourPoints.push_back(point);
-	// Take closest
-	auto const neighbours = {
-		std::make_pair(point.first - 1, point.second),
-		std::make_pair(point.first, point.second - 1),
-		std::make_pair(point.first + 1, point.second),
-		std::make_pair(point.first, point.second + 1),
-		std::make_pair(point.first - 1, point.second - 1),
-		std::make_pair(point.first + 1, point.second - 1),
-		std::make_pair(point.first + 1, point.second + 1),
-		std::make_pair(point.first - 1, point.second + 1)
-	};
-	for (auto const& p : neighbours) {
-		if (points.contains(p)) {
-			std::list<IPoint> nextPoints = addPoint(p, points);
-			double const dist_A = pointDistance(*ourPoints.rbegin(), *nextPoints.cbegin());	/* Our end, their front */ 
+	// For the root frame, no points, only a list
+	LineSearchStackFrame() : m_index(getNeighbourCount() + 5), m_neighbours(), m_points() {}
+
+	bool hasNextNeighbour() const {
+		return m_index < getNeighbourCount();
+	}
+
+	IPoint const& getNextNeighbour() {
+		return m_neighbours[m_index++];
+	}
+
+	std::list<IPoint> const& getPointList() const {
+		return m_points;
+	}
+
+	std::list<IPoint>& getPointList() {
+		return m_points;
+	}
+
+	static constexpr inline std::uint8_t getNeighbourCount() {
+		return LINESEARCH_NEIGHBOUR_COUNT;
+	}
+private:
+	std::uint8_t m_index;
+	std::array<IPoint, LINESEARCH_NEIGHBOUR_COUNT> m_neighbours;
+	std::list<IPoint> m_points;
+};
+
+std::list<IPoint> AreaInformation::addPointIterative(IPoint const& start, std::set<IPoint>& points, std::size_t& maxStackSize) const {
+	std::stack<LineSearchStackFrame> stack;
+	stack.push(LineSearchStackFrame(start));
+	points.erase(start);
+
+	while (!stack.empty()) {
+		if (stack.size() > maxStackSize) {
+			maxStackSize = stack.size();
+		}
+
+		auto& frame = stack.top();
+		if (frame.hasNextNeighbour()) {
+			IPoint const& nextNeighbour = frame.getNextNeighbour();
+			auto it = points.find(nextNeighbour);
+			if (it != points.end()) {
+				points.erase(it);
+
+				// Push a new List frame
+				stack.push(LineSearchStackFrame(nextNeighbour));
+			}
+		} else {
+			// My frame is now on top, merge with parent and pop
+			std::list<IPoint> const nextPoints = stack.top().getPointList();
+			stack.pop();
+			if (stack.empty()) {
+				// Root Frame
+				return nextPoints;
+			}
+
+			std::list<IPoint>& ourPoints = stack.top().getPointList();
+			double const dist_A = pointDistance(*ourPoints.rbegin(), *nextPoints.cbegin());	/* Our end, their front */
 			double const dist_B = pointDistance(*ourPoints.rbegin(), *nextPoints.rbegin());	/* Our end, their end */
 			double const dist_C = pointDistance(*ourPoints.cbegin(), *nextPoints.cbegin());	/* Our front, their front */
 			double const dist_D = pointDistance(*ourPoints.cbegin(), *nextPoints.rbegin());	/* Our front, their end */
@@ -149,7 +206,9 @@ std::list<IPoint> AreaInformation::addPoint(IPoint const& point, std::set<IPoint
 			}
 		}
 	}
-	return ourPoints;
+
+	std::cerr << "Internal Error: Control flow reached the end of the stack without returning, this should never happen!" << std::endl;
+	throw;
 }
 
 std::vector<std::vector<std::vector<Point>>> AreaInformation::getListOfLinesPerArea() const {
@@ -171,13 +230,14 @@ std::vector<std::vector<std::vector<Point>>> AreaInformation::getListOfLinesPerA
 		}
 	}
 
+	std::size_t maxStackSize = 0;
 	for (int i = 0; i < boundingsPoints.size(); ++i) {
 		std::set<IPoint> points = boundingsPoints.at(i);
 		std::vector<std::vector<Point>> orderedPointsList;
 		while (points.size() > 0) {
 			// Pick a point, form a line.
 			auto const point = *points.cbegin();
-			auto const line = addPoint(point, points);
+			auto const line = addPointIterative(point, points, maxStackSize);
 
 			// Convert types
 			std::vector<Point> convertedLine;
@@ -191,6 +251,7 @@ std::vector<std::vector<std::vector<Point>>> AreaInformation::getListOfLinesPerA
 
 		result.push_back(orderedPointsList);
 	}
+	std::cout << "Maximum stack depth was " << maxStackSize << "." << std::endl;
 
 	return result;
 }
